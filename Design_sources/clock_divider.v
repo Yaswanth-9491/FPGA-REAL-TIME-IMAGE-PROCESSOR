@@ -17,20 +17,20 @@
 // Revision 0.01 - File Created
 // Additional Comments:
 // 
-//////////////////////////////////////////////////////////////////////////////////
 
 module clock_25mhz (
     input wire clk100,
-    input wire reset,
     output reg clk25
 );
     reg [1:0] count;
 
+    initial begin
+        count = 0;
+        clk25 = 0;
+    end
+
     always @(posedge clk100) begin
-        if (reset) begin
-            count <= 0;
-            clk25 <= 0;
-        end else if (count == 1) begin
+        if (count == 1) begin
             count <= 0;
             clk25 <= ~clk25;
         end else begin
@@ -38,3 +38,4 @@ module clock_25mhz (
         end
     end
 endmodule
+
