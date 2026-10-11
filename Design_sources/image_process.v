@@ -1,79 +1,81 @@
-module image_processor(
-    input [23:0] pixel_in,
-    input [2:0] select,
-    output reg [23:0] pixel_out
+
+module image_processor (
+    input  wire [11:0] pixel_in,
+    input  wire [9:0]  sw,
+    input  wire        processing_enable,
+    output wire [11:0] pixel_out
 );
 
-    wire [7:0] r;
-    wire [7:0] g;
-    wire [7:0] b;
+    wire [11:0] s0, s1, s2, s3, s4, s5, s6;
 
-    wire [9:0] sum;
-    wire [7:0] gray;
+    function [3:0] gray;
+        input [11:0] p;
+        reg [5:0] sum;
+        begin
+            sum = {2'b0,p[11:8]} +
+                  {2'b0,p[7:4]} +
+                  {2'b0,p[3:0]};
+            gray = sum / 3;
+        end
+    endfunction
 
-    wire [8:0] bright_r;
-    wire [8:0] bright_g;
-    wire [8:0] bright_b;
+    function [3:0] bright;
+        input [3:0] v;
+        begin
+            bright = (v >= 13) ? 15 : v + 2;
+        end
+    endfunction
 
-    assign r = pixel_in[23:16];
-    assign g = pixel_in[15:8];
-    assign b = pixel_in[7:0];
+    function [3:0] contrast;
+        input [3:0] v;
+        begin
+            if (v < 4)
+                contrast = 0;
+            else if (v > 11)
+                contrast = 15;
+            else
+                contrast = v;
+        end
+    endfunction
 
-    assign sum = {2'b00,r} + {2'b00,g} + {2'b00,b};
-    assign gray = sum / 3;
+    // SW0: Negative
+    assign s0 = (processing_enable && sw[0])
+              ? ~pixel_in : pixel_in;
 
-    assign bright_r = {1'b0,r} + 9'd32;
-    assign bright_g = {1'b0,g} + 9'd32;
-    assign bright_b = {1'b0,b} + 9'd32;
+    // SW1: Grayscale
+    assign s1 = (processing_enable && sw[1])
+              ? {gray(s0), gray(s0), gray(s0)} : s0;
 
-    always @(*) begin
-        case(select)
+    // SW2: Threshold
+    assign s2 = (processing_enable && sw[2])
+              ? ((gray(s1) >= 8) ? 12'hFFF : 12'h000) : s1;
 
-            3'b000: begin
-                pixel_out = pixel_in;
-            end
+    // SW3: Brightness
+    assign s3 = (processing_enable && sw[3])
+              ? {bright(s2[11:8]), bright(s2[7:4]),
+                 bright(s2[3:0])} : s2;
 
-            3'b001: begin
-                pixel_out[23:16] = 8'd255 - r;
-                pixel_out[15:8]  = 8'd255 - g;
-                pixel_out[7:0]   = 8'd255 - b;
-            end
+    // SW4: Contrast
+    assign s4 = (processing_enable && sw[4])
+              ? {contrast(s3[11:8]), contrast(s3[7:4]),
+                 contrast(s3[3:0])} : s3;
 
-            3'b010: begin
-                pixel_out = {gray,gray,gray};
-            end
+    // SW8: Highlight red-colored pixels
+    wire red_detected =
+        (s4[11:8] >= 10) &&
+        (s4[7:4] <= 5) &&
+        (s4[3:0] <= 5);
 
-            3'b011: begin
-                if (gray >= 8'd128)
-                    pixel_out = 24'hFFFFFF;
-                else
-                    pixel_out = 24'h000000;
-            end
+    assign s5 = (processing_enable && sw[8])
+              ? (red_detected ? 12'hF00 : s4) : s4;
 
-            3'b100: begin
+    // SW9: Solarization-style enhancement
+    assign s6 = (processing_enable && sw[9])
+              ? { (s5[11:8] >= 8 ? ~s5[11:8] : s5[11:8]),
+                  (s5[7:4]  >= 8 ? ~s5[7:4]  : s5[7:4]),
+                  (s5[3:0]  >= 8 ? ~s5[3:0]  : s5[3:0])}
+              : s5;
 
-                if (bright_r > 9'd255)
-                    pixel_out[23:16] = 8'd255;
-                else
-                    pixel_out[23:16] = bright_r[7:0];
-
-                if (bright_g > 9'd255)
-                    pixel_out[15:8] = 8'd255;
-                else
-                    pixel_out[15:8] = bright_g[7:0];
-
-                if (bright_b > 9'd255)
-                    pixel_out[7:0] = 8'd255;
-                else
-                    pixel_out[7:0] = bright_b[7:0];
-
-            end
-
-            default: begin
-                pixel_out = pixel_in;
-            end
-
-        endcase
-    end
+    assign pixel_out = s6;
 
 endmodule
