@@ -19,34 +19,22 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-module clock_divider(
-    input clk,
-    input reset,
-    output reg clk_25
+module clock_25mhz (
+    input wire clk100,
+    input wire reset,
+    output reg clk25
 );
-
     reg [1:0] count;
 
-    always @(posedge clk or posedge reset) begin
-
+    always @(posedge clk100) begin
         if (reset) begin
-            count <= 2'd0;
-            clk_25 <= 1'b0;
+            count <= 0;
+            clk25 <= 0;
+        end else if (count == 1) begin
+            count <= 0;
+            clk25 <= ~clk25;
+        end else begin
+            count <= count + 1'b1;
         end
-
-        else begin
-
-            if (count == 2'd1) begin
-                count <= 2'd0;
-                clk_25 <= ~clk_25;
-            end
-
-            else begin
-                count <= count + 1'b1;
-            end
-
-        end
-
     end
-
 endmodule
