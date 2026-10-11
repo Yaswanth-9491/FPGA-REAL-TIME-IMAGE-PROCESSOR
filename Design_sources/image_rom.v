@@ -19,19 +19,21 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-module image_rom(
-    input [18:0] address,
-    output reg [23:0] pixel_data
+
+module image_rom (
+    input wire clk,
+    input wire [17:0] address,
+    output reg [11:0] pixel
 );
 
-    reg [23:0] memory [0:307199];
+    reg [11:0] memory [0:172799];
 
     initial begin
-        $readmemh("../image/image.mem", memory);
+        $readmemh("image.mem", memory);
     end
 
-    always @(*) begin
-        pixel_data = memory[address];
+    always @(posedge clk) begin
+        pixel <= memory[address];
     end
 
 endmodule
