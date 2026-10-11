@@ -27,7 +27,7 @@ module gaussian_blur (
         reg [7:0] sum;
         begin
           
-sum = {4'b0,a}
+         sum = {4'b0,a}
     + ({4'b0,b} << 1)
     + {4'b0,c}
     + ({4'b0,d} << 1)
